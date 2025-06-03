@@ -1,0 +1,109 @@
+package releaser
+
+import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+)
+
+// Client holds the base URL, command name, allows custom HTTP client, and optional headers.
+type Client struct {
+	BaseURL    *url.URL
+	CmdName    string
+	HTTPClient HTTPDoer
+	Headers    map[string]string // Optional headers to add to each request
+}
+
+// HTTPDoer is an interface for http.Client or mocks.
+type HTTPDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// Option is a functional option for configuring Client.
+type Option func(*Client)
+
+// WithHeaders sets custom headers for the Client.
+func WithHeaders(headers map[string]string) Option {
+	return func(c *Client) {
+		c.Headers = headers
+	}
+}
+
+// WithHTTPClient sets a custom HTTP client for the Client.
+func WithHTTPClient(client HTTPDoer) Option {
+	return func(c *Client) {
+		c.HTTPClient = client
+	}
+}
+
+// NewClient creates a new Client with optional configuration.
+func NewClient(baseURL *url.URL, cmdName string, opts ...Option) *Client {
+	c := &Client{
+		BaseURL:    baseURL,
+		CmdName:    cmdName,
+		HTTPClient: http.DefaultClient,
+		Headers:    nil,
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
+}
+
+// addHeaders adds custom headers to the request if present.
+func (c *Client) addHeaders(req *http.Request) {
+	for k, v := range c.Headers {
+		req.Header.Set(k, v)
+	}
+}
+
+// GetManifest fetches and decodes the manifest for the given platform.
+func (c *Client) GetManifest(plat Platform) (Manifest, error) {
+	manifestURL := c.BaseURL.JoinPath(c.CmdName, plat.String()+".json").String()
+	req, err := http.NewRequest("GET", manifestURL, nil)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("failed to create request: %w", err)
+	}
+	c.addHeaders(req)
+	// #nosec G107 -- manifestURL is constructed from trusted config and parameters
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("failed to GET manifest: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return Manifest{}, fmt.Errorf("bad http status from %s: %v", manifestURL, resp.Status)
+	}
+
+	var res Manifest
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return Manifest{}, fmt.Errorf("invalid manifest JSON: %w", err)
+	}
+	if len(res.Sha256) != sha256.Size {
+		return Manifest{}, fmt.Errorf("bad sha256 in manifest: got %d bytes", len(res.Sha256))
+	}
+	return res, nil
+}
+
+// FetchZip fetches the zip for the given version and platform.
+func (c *Client) FetchZip(version string, plat Platform) (io.ReadCloser, error) {
+	zipURL := c.BaseURL.JoinPath(c.CmdName, version, plat.String()+".zip").String()
+	req, err := http.NewRequest("GET", zipURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	c.addHeaders(req)
+	// #nosec G107 -- zipURL is constructed from trusted config and parameters
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to GET zip: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("bad http status from %s: %v", zipURL, resp.Status)
+	}
+	return resp.Body, nil
+}
