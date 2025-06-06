@@ -15,12 +15,12 @@ import (
 	"github.com/arduino/go-updater/releaser"
 )
 
-func TestPerformUpdate(t *testing.T) {
+func TestApply(t *testing.T) {
 	tmpExec := CreateTmpExecutable(t, "successfulUpdate", []byte{0xDE, 0xAD, 0xBE, 0xEF})
 	defer tmpExec.cleanup()
 	client := CreateRelease(t, "2.0.0", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
 
-	restartPath, err := checkForUpdates(tmpExec.targetPath, Version("1.0.0"), client)
+	restartPath, err := apply(tmpExec.targetPath, releaser.Version("1.0.0"), client, DefaultUpgradeConfirmCb)
 	require.NoError(t, err)
 	require.NotEmpty(t, restartPath)
 
@@ -29,21 +29,21 @@ func TestPerformUpdate(t *testing.T) {
 	require.Equal(t, []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06}, data, "Updated binary content does not match expected content")
 }
 
-func TestNoUpdateRequired(t *testing.T) {
+func TestApplyWithNoUpdate(t *testing.T) {
 	tmpExec := CreateTmpExecutable(t, "noUpdate", []byte{0xDE, 0xAD, 0xBE, 0xEF})
 	defer tmpExec.cleanup()
 	client := CreateRelease(t, "1.0.0", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
 
-	result, err := checkForUpdates(tmpExec.targetPath, Version("1.0.0"), client)
+	result, err := apply(tmpExec.targetPath, releaser.Version("1.0.0"), client, DefaultUpgradeConfirmCb)
 	require.NoError(t, err)
 	require.Equal(t, "", result)
 }
 
-func TestCleanUpOldFiles(t *testing.T) {
+func TestApplyWillCleanUpFiles(t *testing.T) {
 	tmpExec := CreateTmpExecutable(t, "cleanUp", []byte{0xDE, 0xAD, 0xBE, 0xEF})
 	client := CreateRelease(t, "3.0.0", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
 
-	result, err := checkForUpdates(tmpExec.targetPath, Version("1.0.0"), client)
+	result, err := apply(tmpExec.targetPath, releaser.Version("1.0.0"), client, DefaultUpgradeConfirmCb)
 	require.NoError(t, err)
 	require.Equal(t, tmpExec.targetPath, result)
 
@@ -66,6 +66,7 @@ type TmpExecutable struct {
 }
 
 func CreateTmpExecutable(t *testing.T, binaryName string, content []byte) TmpExecutable {
+	// prefix the binary name with "test-" to put the folders in the .gitignore
 	tmpDir := filepath.Join(".", "test-"+binaryName)
 	err := os.MkdirAll(tmpDir, 0755)
 	require.NoError(t, err)
@@ -85,7 +86,7 @@ func CreateTmpExecutable(t *testing.T, binaryName string, content []byte) TmpExe
 	}
 }
 
-func CreateRelease(t *testing.T, version Version, content []byte) *releaser.Client {
+func CreateRelease(t *testing.T, version releaser.Version, content []byte) *releaser.Client {
 	tmpDir := t.TempDir()
 
 	inputDir := filepath.Join(tmpDir, "input")
@@ -96,7 +97,7 @@ func CreateRelease(t *testing.T, version Version, content []byte) *releaser.Clie
 
 	outputDir := filepath.Join(tmpDir, "output")
 
-	_, err := releaser.CreateRelease(inputDir, releaser.NewPlatform("linux", "amd64"), version.String(), outputDir)
+	_, err := releaser.CreateRelease(inputDir, releaser.NewPlatform("linux", "amd64"), version, outputDir)
 	require.NoError(t, err)
 
 	// check zip file exists and json manifest is created
@@ -138,6 +139,20 @@ func CreateRelease(t *testing.T, version Version, content []byte) *releaser.Clie
 	}
 
 	return client
+}
+
+func CreateReleaseWithHTTPErrorResponse(t *testing.T, statusCode int) *releaser.Client {
+	return &releaser.Client{
+		BaseURL: &url.URL{Scheme: "http", Host: "example.com"},
+		CmdName: "testcmd",
+		HTTPClient: &mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+			resp := &http.Response{
+				StatusCode: statusCode,
+				Body:       io.NopCloser(bytes.NewBufferString("")),
+			}
+			return resp, nil
+		}},
+	}
 }
 
 // mockHTTPClient implements releaser.HTTPDoer for testing.

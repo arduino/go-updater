@@ -32,7 +32,7 @@ func main() {
 	inputPath := flag.Arg(0)
 	version := flag.Arg(1)
 
-	manifest, err := releaser.CreateRelease(inputPath, platform, version, outputDir)
+	manifest, err := releaser.CreateRelease(inputPath, platform, releaser.Version(version), outputDir)
 	if err != nil {
 		log.Fatalf("could not create release: %v", err)
 	}

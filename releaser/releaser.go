@@ -11,17 +11,27 @@ import (
 )
 
 type Manifest struct {
-	Version string `json:"version"`
-	Sha256  []byte `json:"sha256"`
+	Version Version `json:"version"`
+	Sha256  []byte  `json:"sha256"`
 }
 
-func CreateRelease(inputPath string, platform Platform, version, outputDir string) (Manifest, error) {
+type Version string
+
+func (v Version) String() string {
+	return string(v)
+}
+
+func (v Version) Equals(other Version) bool {
+	return v.String() == other.String()
+}
+
+func CreateRelease(inputPath string, platform Platform, version Version, outputDir string) (Manifest, error) {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return Manifest{}, fmt.Errorf("could not create output dir: %s. %w", outputDir, err)
 	}
 	// Prepare output paths
 	jsonPath := filepath.Join(outputDir, platform.String()+".json")
-	versionDir := filepath.Join(outputDir, version)
+	versionDir := filepath.Join(outputDir, version.String())
 	zipPath := filepath.Join(versionDir, platform.String()+".zip")
 
 	if err := os.MkdirAll(versionDir, 0755); err != nil {

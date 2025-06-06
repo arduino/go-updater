@@ -19,22 +19,23 @@ import (
 	"github.com/codeclysm/extract/v4"
 )
 
-// checkForUpdates checks for updates for the current executable.
-// It downloads the update, verifies it, unzips it, and replaces the current executable.
-// It returns the path to the updated executable or an error if something goes wrong.
-
-func checkForUpdates(targetPath string, current Version, client *releaser.Client) (string, error) {
+func apply(targetPath string, current releaser.Version, client *releaser.Client, upgradeConfirmCb UpgradeConfirmCB) (string, error) {
 	currentPath := paths.New(targetPath)
 	currentDir := currentPath.Parent()
 
 	plat := releaser.NewPlatform(runtime.GOOS, runtime.GOARCH)
 	slog.Info("Checking for updates", "platform", plat)
-	manifest, err := client.GetManifest(plat)
+	manifest, err := client.GetLatestVersion(plat)
 	if err != nil {
 		return "", err
 	}
-	if manifest.Version == current.String() {
+	if manifest.Version == current {
 		// No updates available, bye bye
+		return "", nil
+	}
+
+	if upgradeConfirmCb != nil && !upgradeConfirmCb(current, manifest.Version) {
+		slog.Info("Update not confirmed by user, exiting without applying update")
 		return "", nil
 	}
 

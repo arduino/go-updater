@@ -60,8 +60,8 @@ func (c *Client) addHeaders(req *http.Request) {
 	}
 }
 
-// GetManifest fetches and decodes the manifest for the given platform.
-func (c *Client) GetManifest(plat Platform) (Manifest, error) {
+// GetLatestVersion fetches and decodes the manifest for the given platform.
+func (c *Client) GetLatestVersion(plat Platform) (Manifest, error) {
 	manifestURL := c.BaseURL.JoinPath(c.CmdName, plat.String()+".json").String()
 	req, err := http.NewRequest("GET", manifestURL, nil)
 	if err != nil {
@@ -89,8 +89,8 @@ func (c *Client) GetManifest(plat Platform) (Manifest, error) {
 }
 
 // FetchZip fetches the zip for the given version and platform.
-func (c *Client) FetchZip(version string, plat Platform) (io.ReadCloser, error) {
-	zipURL := c.BaseURL.JoinPath(c.CmdName, version, plat.String()+".zip").String()
+func (c *Client) FetchZip(version Version, plat Platform) (io.ReadCloser, error) {
+	zipURL := c.BaseURL.JoinPath(c.CmdName, version.String(), plat.String()+".zip").String()
 	req, err := http.NewRequest("GET", zipURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

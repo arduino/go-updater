@@ -7,25 +7,28 @@ import (
 	"github.com/arduino/go-updater/releaser"
 )
 
-type Version string
+// UpgradeConfirmCB is a function that is called when an update is ready to be applied.
+type UpgradeConfirmCB func(current, target releaser.Version) bool
 
-func (v Version) String() string {
-	return string(v)
-}
+var DefaultUpgradeConfirmCb = func(current, target releaser.Version) bool { return true }
 
-// Start checks if an update has to be downloaded and if so returns the path to the
-// binary to be executed to perform the update.
-// If the update is not available, it returns an empty string and no error.
-// If the update is available, it returns the path to the binary to be executed.
-// If there is an error, it returns the error.
-func CheckForUpdates(targetPath string, current Version, client *releaser.Client) (string, error) {
-	return checkForUpdates(targetPath, current, client)
-}
-
-func Restart(executable string) error {
-	err := execApp(executable)
+// CheckForUpdates checks for updates and applies it if available.
+// If the upgradeCb is not nil, it will prompt the user for confirmation before applying the update.
+// If an update is applied, it will restart the application with the new version.
+// If no update is available, it will return nil.
+// If an error occurs during the update process, it will return the error.
+func CheckForUpdates(targetPath string, current releaser.Version, client *releaser.Client, upgradeCb UpgradeConfirmCB) error {
+	restartPath, err := apply(targetPath, current, client, upgradeCb)
 	if err != nil {
-		return fmt.Errorf("could not exec app: %w", err)
+		return err
+	}
+
+	if restartPath == "" {
+		return nil // No update available
+	}
+
+	if err := execApp(restartPath); err != nil {
+		return fmt.Errorf("update applied, but failed to restart application: %w", err)
 	}
 	// TODO: allow to define custom "exit" code to be used in the wail app runtime.quit()
 	os.Exit(0)

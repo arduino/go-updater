@@ -17,7 +17,7 @@ import (
 	"github.com/codeclysm/extract/v4"
 )
 
-func checkForUpdates(targetPath string, current Version, client *releaser.Client) (string, error) {
+func apply(targetPath string, current releaser.Version, client *releaser.Client, upgradeConfirmCb UpgradeConfirmCB) (string, error) {
 	currentAppPath := paths.New(targetPath).Parent().Parent().Parent()
 	if currentAppPath.Ext() != ".app" {
 		return "", fmt.Errorf("could not find app root in %s", targetPath)
@@ -31,12 +31,17 @@ func checkForUpdates(targetPath string, current Version, client *releaser.Client
 	// Fetch information about updates
 	plat := releaser.NewPlatform(runtime.GOOS, runtime.GOARCH)
 	slog.Info("Checking for updates", "platform", plat)
-	manifest, err := client.GetManifest(plat)
+	manifest, err := client.GetLatestVersion(plat)
 	if err != nil {
 		return "", err
 	}
-	if manifest.Version == current.String() {
+	if manifest.Version == current {
 		// No updates available, bye bye
+		return "", nil
+	}
+
+	if upgradeConfirmCb != nil && !upgradeConfirmCb(current, manifest.Version) {
+		slog.Info("Update not confirmed by user, exiting without applying update")
 		return "", nil
 	}
 

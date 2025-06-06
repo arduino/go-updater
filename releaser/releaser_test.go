@@ -22,7 +22,7 @@ func TestCreateReleaseFile(t *testing.T) {
 	content := []byte("hello world")
 	require.NoError(t, os.WriteFile(dummyFile, content, 0600))
 
-	version := "1.2.3"
+	version := Version("1.2.3")
 	manifest, err := CreateRelease(dummyFile, NewPlatform("linux", "amd64"), version, outputDir)
 	require.NoError(t, err)
 
@@ -37,7 +37,7 @@ func TestCreateReleaseFile(t *testing.T) {
 	//      linux-amd64.zip
 	//   linux-amd64.json
 	//
-	zipPath := filepath.Join(outputDir, version, "linux-amd64.zip")
+	zipPath := filepath.Join(outputDir, version.String(), "linux-amd64.zip")
 	zf, err := zip.OpenReader(zipPath)
 	require.NoError(t, err, "could not open zip file %s", zipPath)
 	defer zf.Close()
@@ -100,7 +100,7 @@ func TestCreateReleaseFolder(t *testing.T) {
 	require.NoError(t, os.WriteFile(fileA, contentA, 0600))
 	require.NoError(t, os.WriteFile(fileB, contentB, 0600))
 
-	version := "2.0.0"
+	version := Version("2.0.0")
 	manifest, err := CreateRelease(inputDir, NewPlatform("linux", "amd64"), version, outputDir)
 	require.NoError(t, err)
 
@@ -109,7 +109,7 @@ func TestCreateReleaseFolder(t *testing.T) {
 	require.Len(t, manifest.Sha256, 32)
 
 	// Check that the zip file exists and contains all files
-	zipPath := filepath.Join(outputDir, version, "linux-amd64.zip")
+	zipPath := filepath.Join(outputDir, version.String(), "linux-amd64.zip")
 	zf, err := zip.OpenReader(zipPath)
 	require.NoError(t, err, "could not open zip file %s", zipPath)
 	defer zf.Close()
@@ -148,4 +148,47 @@ func TestCreateReleaseFolder(t *testing.T) {
 	require.NoError(t, json.Unmarshal(b, &m))
 	require.Equal(t, version, m.Version)
 	require.Len(t, m.Sha256, 32)
+}
+
+func TestVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		v1       Version
+		v2       Version
+		expected bool
+	}{
+		{
+			name:     "Equal versions",
+			v1:       Version("1.0.0"),
+			v2:       Version("1.0.0"),
+			expected: true,
+		},
+		{
+			name:     "Different versions",
+			v1:       Version("1.0.0"),
+			v2:       Version("2.0.0"),
+			expected: false,
+		},
+		{
+			name:     "Empty versions",
+			v1:       Version(""),
+			v2:       Version(""),
+			expected: true,
+		},
+		{
+			name:     "One empty version",
+			v1:       Version("1.0.0"),
+			v2:       Version(""),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.v1 == tt.v2
+			if result != tt.expected {
+				t.Errorf("Version.Equals() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
 }
