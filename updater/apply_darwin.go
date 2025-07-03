@@ -60,7 +60,9 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 	tmpZip := tmp.Join("update.zip")
 	tmpAppPath := tmp.Join(fmt.Sprintf(".%s.new", currentFolderAppName))
 
-	defer tmp.RemoveAll()
+	defer func() {
+		_ = tmp.RemoveAll()
+	}()
 
 	f, err := tmpZip.Create()
 	if err != nil {
