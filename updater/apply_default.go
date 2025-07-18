@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -95,12 +96,19 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 	}
 
 	// Find the binary inside the unzipped folder
+	isExecutable := func(info fs.FileInfo) bool {
+		if runtime.GOOS == "windows" {
+			return filepath.Ext(info.Name()) == ".exe"
+		} else {
+			return info.Mode()&0111 != 0
+		}
+	}
 	binaryPath := ""
 	err = filepath.Walk(newDir.String(), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && (info.Mode()&0111 != 0) {
+		if !info.IsDir() && (isExecutable(info)) {
 			binaryPath = path
 			return io.EOF // stop walking after finding the first executable
 		}

@@ -117,7 +117,7 @@ func TestCreateReleaseFolder(t *testing.T) {
 	foundA := false
 	foundB := false
 	for _, f := range zf.File {
-		if f.Name == "input/a.txt" {
+		if f.Name == filepath.Join("input", "a.txt") {
 			foundA = true
 			rc, err := f.Open()
 			require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestCreateReleaseFolder(t *testing.T) {
 			require.Equal(t, contentA, data)
 			rc.Close()
 		}
-		if f.Name == "input/subdir/b.txt" {
+		if f.Name == filepath.Join("input", "subdir", "b.txt") {
 			foundB = true
 			rc, err := f.Open()
 			require.NoError(t, err)
