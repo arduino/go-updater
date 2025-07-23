@@ -56,7 +56,7 @@ func defaultPlatform() releaser.Platform {
 func printUsage() {
 	fmt.Fprintf(os.Stderr, `
 Usage:
-  go-selfupdate [flags] <binary-or-dir> <version>
+  releaser [flags] <binary-or-dir> <version>
 
 Positional arguments:
   <binary-or-dir>   Path to the binary file or directory containing binaries
@@ -67,7 +67,7 @@ Flags:
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr, `
 Examples:
-  go-selfupdate myapp 1.2.3
-  go-selfupdate -o public -platform linux-amd64 myapp 1.2.3
-  go-selfupdate /tmp/mybinares/ 1.2.3`)
+  releaser myapp 1.2.3
+  releaser -o public -platform linux-amd64 myapp 1.2.3
+  releaser /tmp/mybinares/ 1.2.3`)
 }
