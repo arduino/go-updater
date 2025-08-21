@@ -11,8 +11,11 @@ import (
 	"github.com/arduino/go-updater/releaser"
 )
 
+var version = "dev"
+
 func main() {
 	var (
+		isVersion bool
 		outputDir string
 		platform  releaser.Platform
 	)
@@ -21,8 +24,14 @@ func main() {
 
 	flag.StringVar(&outputDir, "o", "public", "Output directory for writing updates")
 	flag.Var(&platform, "platform", "Target platform in the form OS-ARCH. Defaults to running os/arch or the combination of the environment variables GOOS and GOARCH if both are set.")
+	flag.BoolVar(&isVersion, "version", false, "Print the version of the releaser tool")
 	flag.Usage = printUsage
 	flag.Parse()
+
+	if isVersion {
+		fmt.Println("Releaser version:", version)
+		return
+	}
 
 	if flag.NArg() < 2 {
 		flag.Usage()
