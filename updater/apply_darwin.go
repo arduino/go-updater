@@ -47,7 +47,7 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 
 	// Download the update.
 	slog.Info("Downloading update", "version", manifest.Version, "platform", plat)
-	download, err := client.FetchZip(manifest.Version, plat)
+	download, err := client.FetchRelease(manifest)
 	if err != nil {
 		return "", err
 	}
@@ -57,14 +57,14 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 	if err := tmp.MkdirAll(); err != nil {
 		return "", err
 	}
-	tmpZip := tmp.Join("update.zip")
+	tmpRelease := tmp.Join(download.FileName)
 	tmpAppPath := tmp.Join(fmt.Sprintf(".%s.new", currentFolderAppName))
 
 	defer func() {
 		_ = tmp.RemoveAll()
 	}()
 
-	f, err := tmpZip.Create()
+	f, err := tmpRelease.Create()
 	if err != nil {
 		return "", err
 	}
@@ -81,13 +81,18 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 		return "", fmt.Errorf("bad hash: %x (expected %x)", s, manifest.Sha256)
 	}
 
+	if tmpRelease.Ext() != ".zip" {
+		// TODO: add .dmg support
+		return "", fmt.Errorf("expected a .zip release file, got %s", tmpRelease)
+	}
+
 	// Unzip the update
 	slog.Info("Unzipping update", "tmpDir", tmpAppPath)
 	if err := tmpAppPath.MkdirAll(); err != nil {
 		return "", fmt.Errorf("could not create tmp dir to unzip update: %w", err)
 	}
 
-	f, err = tmpZip.Open()
+	f, err = tmpRelease.Open()
 	if err != nil {
 		return "", fmt.Errorf("could not open archive for unzip: %w", err)
 	}

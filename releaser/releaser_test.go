@@ -1,9 +1,7 @@
 package releaser
 
 import (
-	"archive/zip"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,50 +16,29 @@ func TestCreateReleaseFile(t *testing.T) {
 	inputDir := filepath.Join(tmpDir, "input")
 	require.NoError(t, os.Mkdir(inputDir, 0700))
 
-	dummyFile := filepath.Join(inputDir, "dummy.txt")
+	version := Version("1.2.3")
+	dummyFile := filepath.Join(inputDir, "dummy-1.2.3.txt")
 	content := []byte("hello world")
 	require.NoError(t, os.WriteFile(dummyFile, content, 0600))
 
-	version := Version("1.2.3")
 	manifest, err := CreateRelease(dummyFile, NewPlatform("linux", "amd64"), version, outputDir)
 	require.NoError(t, err)
 
 	// Check manifest fields
 	require.Equal(t, version, manifest.Version)
+	require.Equal(t, "dummy-1.2.3.txt", manifest.Name)
 	require.Len(t, manifest.Sha256, 32)
 
-	// Check that the zip file exists and contains the file
+	// Check that the file exists and contains the file
 	// Expected folder structure in outputDir:
 	// outputDir/
-	//  1.2.3/
-	//      linux-amd64.zip
+	//      dummy.txt
 	//   linux-amd64.json
 	//
-	zipPath := filepath.Join(outputDir, version.String(), "linux-amd64.zip")
-	zf, err := zip.OpenReader(zipPath)
-	require.NoError(t, err, "could not open zip file %s", zipPath)
-	defer zf.Close()
-
-	found := false
-	for _, f := range zf.File {
-		if f.Name == "dummy.txt" {
-			found = true
-			rc, err := f.Open()
-			if err != nil {
-				t.Fatalf("could not open file in zip: %v", err)
-			}
-			defer rc.Close()
-			data := make([]byte, len(content))
-			_, err = rc.Read(data)
-			require.NoError(t, err, "could not read file from zip")
-			if string(data) != string(content) {
-				t.Errorf("zip content mismatch: got %q, want %q", string(data), string(content))
-			}
-		}
-	}
-	if !found {
-		t.Errorf("dummy.txt not found in zip")
-	}
+	outPath := filepath.Join(outputDir, manifest.Name)
+	outFile, err := os.ReadFile(outPath)
+	require.NoError(t, err)
+	require.Equal(t, content, outFile)
 
 	// Check that the manifest JSON file exists and is valid
 	jsonPath := filepath.Join(outputDir, "linux-amd64.json")
@@ -75,79 +52,7 @@ func TestCreateReleaseFile(t *testing.T) {
 	}
 	require.Equal(t, version, m.Version)
 	require.Len(t, m.Sha256, 32)
-}
-
-func TestCreateReleaseFolder(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	outputDir := filepath.Join(tmpDir, "output")
-	inputDir := filepath.Join(tmpDir, "input")
-	require.NoError(t, os.Mkdir(inputDir, 0700))
-
-	// Create multiple files and a subdirectory
-	// Folder structure:
-	// input/
-	//   a.txt
-	//   subdir/
-	//     b.txt
-	subDir := filepath.Join(inputDir, "subdir")
-	require.NoError(t, os.Mkdir(subDir, 0700))
-
-	fileA := filepath.Join(inputDir, "a.txt")
-	fileB := filepath.Join(subDir, "b.txt")
-	contentA := []byte("file A")
-	contentB := []byte("file B")
-	require.NoError(t, os.WriteFile(fileA, contentA, 0600))
-	require.NoError(t, os.WriteFile(fileB, contentB, 0600))
-
-	version := Version("2.0.0")
-	manifest, err := CreateRelease(inputDir, NewPlatform("linux", "amd64"), version, outputDir)
-	require.NoError(t, err)
-
-	// Check manifest fields
-	require.Equal(t, version, manifest.Version)
-	require.Len(t, manifest.Sha256, 32)
-
-	// Check that the zip file exists and contains all files
-	zipPath := filepath.Join(outputDir, version.String(), "linux-amd64.zip")
-	zf, err := zip.OpenReader(zipPath)
-	require.NoError(t, err, "could not open zip file %s", zipPath)
-	defer zf.Close()
-
-	foundA := false
-	foundB := false
-	for _, f := range zf.File {
-		if f.Name == filepath.Join("input", "a.txt") {
-			foundA = true
-			rc, err := f.Open()
-			require.NoError(t, err)
-			data, err := io.ReadAll(rc)
-			require.NoError(t, err)
-			require.Equal(t, contentA, data)
-			rc.Close()
-		}
-		if f.Name == filepath.Join("input", "subdir", "b.txt") {
-			foundB = true
-			rc, err := f.Open()
-			require.NoError(t, err)
-			data, err := io.ReadAll(rc)
-			require.NoError(t, err)
-			require.Equal(t, contentB, data)
-			rc.Close()
-		}
-	}
-	require.True(t, foundA, "a.txt not found in zip")
-	require.True(t, foundB, "subdir/b.txt not found in zip")
-
-	// Check that the manifest JSON file exists and is valid
-	jsonPath := filepath.Join(outputDir, "linux-amd64.json")
-	b, err := os.ReadFile(jsonPath)
-	require.NoError(t, err, "could not read manifest json file %s", jsonPath)
-
-	var m Manifest
-	require.NoError(t, json.Unmarshal(b, &m))
-	require.Equal(t, version, m.Version)
-	require.Len(t, m.Sha256, 32)
+	require.Equal(t, "dummy-1.2.3.txt", m.Name)
 }
 
 func TestVersion(t *testing.T) {

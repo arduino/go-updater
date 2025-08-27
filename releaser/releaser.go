@@ -1,16 +1,17 @@
 package releaser
 
 import (
-	"archive/zip"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Manifest struct {
+	Name    string  `json:"name"`
 	Version Version `json:"version"`
 	Sha256  []byte  `json:"sha256"`
 }
@@ -25,111 +26,81 @@ func (v Version) Equals(other Version) bool {
 	return v.String() == other.String()
 }
 
+// CreateRelease creates a release manifest and copies the input file to the output directory.
 func CreateRelease(inputPath string, platform Platform, version Version, outputDir string) (Manifest, error) {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return Manifest{}, fmt.Errorf("could not create output dir: %s. %w", outputDir, err)
-	}
-	// Prepare output paths
-	jsonPath := filepath.Join(outputDir, platform.String()+".json")
-	versionDir := filepath.Join(outputDir, version.String())
-	zipPath := filepath.Join(versionDir, platform.String()+".zip")
-
-	if err := os.MkdirAll(versionDir, 0755); err != nil {
-		return Manifest{}, fmt.Errorf("could not create version dir: %w", err)
-	}
-
-	// Create the zip file
-	zipFile, err := os.Create(zipPath)
-	if err != nil {
-		return Manifest{}, fmt.Errorf("could not create zip file: %w", err)
-	}
-	zipWriter := zip.NewWriter(zipFile)
-
 	fi, err := os.Stat(inputPath)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("could not stat input: %w", err)
 	}
-
 	if fi.IsDir() {
-		// Recursively add directory contents to the zip
-		err = filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			relPath, err := filepath.Rel(filepath.Dir(inputPath), path)
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-			return addFileToZip(zipWriter, path, relPath)
-		})
-		if err != nil {
-			return Manifest{}, fmt.Errorf("could not zip directory: %w", err)
-		}
-	} else {
-		// Single file: make it executable before zipping
-		err = addFileToZip(zipWriter, inputPath, filepath.Base(inputPath))
-		if err != nil {
-			return Manifest{}, fmt.Errorf("could not zip file: %w", err)
-		}
+		return Manifest{}, fmt.Errorf("input path must be a file, not a directory: %s", inputPath)
 	}
 
-	zipWriter.Close()
-	zipFile.Close()
+	fileName := filepath.Base(inputPath)
 
-	// Now calculate the SHA256 of the zip file itself
-	zipData, err := os.Open(zipPath)
+	if !strings.Contains(fileName, version.String()) {
+		return Manifest{}, fmt.Errorf("input file %s must contain the version string %s", inputPath, version.String())
+	}
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return Manifest{}, fmt.Errorf("could not create output dir: %s. %w", outputDir, err)
+	}
+
+	// Prepare output paths
+	jsonPath := filepath.Join(outputDir, platform.String()+".json")
+	targetPath := filepath.Join(outputDir, fileName)
+
+	// Now calculate the SHA256 of the file itself
+	data, err := os.Open(inputPath)
 	if err != nil {
-		return Manifest{}, fmt.Errorf("could not open zip for hashing: %w", err)
+		return Manifest{}, fmt.Errorf("could not open file for hashing: %w", err)
 	}
-	defer zipData.Close()
+	defer data.Close()
 	sha := sha256.New()
-	if _, err := io.Copy(sha, zipData); err != nil {
-		return Manifest{}, fmt.Errorf("could not hash zip: %w", err)
+	if _, err := io.Copy(sha, data); err != nil {
+		return Manifest{}, fmt.Errorf("could not hash file: %w", err)
+	}
+
+	if err := copyFile(inputPath, targetPath); err != nil {
+		return Manifest{}, err
 	}
 
 	c := Manifest{
+		Name:    filepath.Base(inputPath),
 		Version: version,
 		Sha256:  sha.Sum(nil),
 	}
-	b, err := json.MarshalIndent(c, "", "    ")
+
+	jsonFile, err := os.Create(jsonPath)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("could not create json file: %w", err)
+	}
+	defer jsonFile.Close()
+	enc := json.NewEncoder(jsonFile)
+	enc.SetIndent("", "    ")
+	err = enc.Encode(c)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("could not marshal json: %w", err)
-	}
-	if err := os.WriteFile(jsonPath, b, 0600); err != nil {
-		return Manifest{}, fmt.Errorf("could not write json file: %w", err)
 	}
 
 	return c, nil
 }
 
-// addFileToZip adds a file to the zip archive.
-func addFileToZip(zipWriter *zip.Writer, filePath, zipPath string) error {
-	info, err := os.Stat(filePath)
+func copyFile(src, dest string) error {
+	fDest, err := os.Create(dest)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not create target file: %w", err)
 	}
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+	defer fDest.Close()
 
-	header, err := zip.FileInfoHeader(info)
+	fSrc, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not open input file: %w", err)
 	}
-	header.Name = zipPath
-	// Set the executable bit in the zip header (for Unix systems)
-	header.SetMode(info.Mode() | 0111)
+	defer fSrc.Close()
 
-	w, err := zipWriter.CreateHeader(header)
-	if err != nil {
-		return err
+	if _, err := io.Copy(fDest, fSrc); err != nil {
+		return fmt.Errorf("could not copy input file to target: %w", err)
 	}
-
-	_, err = io.Copy(w, file)
-	return err
+	return nil
 }

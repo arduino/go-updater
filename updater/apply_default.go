@@ -42,87 +42,90 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 
 	// Download the update
 	slog.Info("Downloading update", "version", manifest.Version, "platform", plat)
-	download, err := client.FetchZip(manifest.Version, plat)
+	download, err := client.FetchRelease(manifest)
 	if err != nil {
 		return "", fmt.Errorf("could not fetch update: %w", err)
 	}
 	defer download.Close()
 
-	// Download the zip
-	tmpZip := currentDir.Join("update.zip")
+	// Download the release
+	tmpRelease := currentDir.Join(download.FileName)
 	defer func() {
-		if err := tmpZip.Remove(); err != nil {
-			slog.Warn("Could not remove temp zip", "zip", tmpZip.String(), "error", err)
+		if err := tmpRelease.Remove(); err != nil {
+			slog.Warn("Could not remove temp file", "file", tmpRelease.String(), "error", err)
 		}
 	}()
 
-	tmpZipFile, err := tmpZip.Create()
+	tmpFile, err := tmpRelease.Create()
 	if err != nil {
 		return "", err
 	}
-	defer tmpZipFile.Close()
+	defer tmpFile.Close()
 
 	sha := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(sha, tmpZipFile), download); err != nil {
+	if _, err := io.Copy(io.MultiWriter(sha, tmpFile), download); err != nil {
 		return "", err
 	}
-	tmpZipFile.Close()
+	tmpFile.Close()
 
 	// Check the hash
 	if s := sha.Sum(nil); !bytes.Equal(s, manifest.Sha256) {
 		return "", fmt.Errorf("bad hash: %x (expected %x)", s, manifest.Sha256)
 	}
 
-	// Unzip the update
-	newDir := currentDir.Join(currentPath.Base() + ".new")
-	slog.Info("Unzipping update", "tmpDir", newDir)
-	if err := newDir.MkdirAll(); err != nil {
-		return "", fmt.Errorf("could not create tmp dir to unzip update: %w", err)
-	}
-	defer func() {
-		if err := newDir.RemoveAll(); err != nil {
-			slog.Warn("Could not remove temp dir", "dir", newDir.String(), "error", err)
-		}
-	}()
-
-	tmpZipFile, err = tmpZip.Open()
+	tmpFile, err = tmpRelease.Open()
 	if err != nil {
-		return "", fmt.Errorf("could not open archive for unzip: %w", err)
+		return "", fmt.Errorf("could not open release file: %w", err)
 	}
-	defer tmpZipFile.Close()
+	defer tmpFile.Close()
 
-	if err := extract.Archive(context.Background(), tmpZipFile, newDir.String(), nil); err != nil {
-		return "", fmt.Errorf("extracting archive: %w", err)
-	}
-
-	// Find the binary inside the unzipped folder
-	isExecutable := func(info fs.FileInfo) bool {
-		if runtime.GOOS == "windows" {
-			return filepath.Ext(info.Name()) == ".exe"
-		} else {
-			return info.Mode()&0111 != 0
+	var binaryPath string
+	switch tmpRelease.Ext() {
+	case ".zip", ".gz", ".tgz":
+		slog.Info("Extracting archive", "path", tmpRelease.String())
+		newDir := currentDir.Join(currentPath.Base() + ".new")
+		if err := newDir.MkdirAll(); err != nil {
+			return "", fmt.Errorf("could not create tmp dir to extract archive: %w", err)
 		}
-	}
-	binaryPath := ""
-	err = filepath.Walk(newDir.String(), func(path string, info os.FileInfo, err error) error {
+		defer func() {
+			if err := newDir.RemoveAll(); err != nil {
+				slog.Warn("Could not remove temp dir", "dir", newDir.String(), "error", err)
+			}
+		}()
+		if err := extract.Archive(context.Background(), tmpFile, newDir.String(), nil); err != nil {
+			return "", fmt.Errorf("extracting archive: %w", err)
+		}
+		err = filepath.Walk(newDir.String(), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() && (isExecutable(info)) {
+				binaryPath = path
+				return io.EOF // stop walking after finding the first executable
+			}
+			return nil
+		})
+		if err != nil && err != io.EOF {
+			return "", fmt.Errorf("error walking for binary: %w", err)
+		}
+	default:
+		stat, err := tmpFile.Stat()
 		if err != nil {
-			return err
+			return "", fmt.Errorf("could not stat release file: %w", err)
 		}
-		if !info.IsDir() && (isExecutable(info)) {
-			binaryPath = path
-			return io.EOF // stop walking after finding the first executable
+		if !isExecutable(stat) {
+			return "", fmt.Errorf("expected an executable binary, got %s", tmpRelease.String())
 		}
-		return nil
-	})
-	if err != nil && err != io.EOF {
-		return "", fmt.Errorf("error walking for binary: %w", err)
+		binaryPath = tmpRelease.String()
 	}
+	_ = tmpFile.Close()
+
 	if binaryPath == "" {
-		return "", fmt.Errorf("no executable binary found in %s", newDir.String())
+		return "", fmt.Errorf("no executable binary found in release")
 	}
 
 	// Remove old path leftovers
-	oldPath := currentPath.Parent().Join(currentPath.Base() + ".old")
+	oldPath := currentDir.Join(currentPath.Base() + ".old")
 
 	slog.Info("Deleting old leftovers", "old", oldPath)
 	err = oldPath.Remove()
@@ -140,8 +143,7 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 	slog.Info("Installing update", "from", binaryPath, "to", currentPath.String())
 	if err := os.Rename(binaryPath, currentPath.String()); err != nil {
 		// Try rollback changes
-		err = oldPath.Rename(currentPath)
-		if err != nil {
+		if err := oldPath.Rename(currentPath); err != nil {
 			slog.Error("Could not rollback changes after failed update", "error", err)
 		}
 		return "", fmt.Errorf("could not install app: %w", err)
@@ -153,8 +155,7 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 	if err != nil {
 		slog.Warn("Could not remove old app", "error", err)
 		// WINDOWS: the folder cannot be removed, so we try to hide it
-		err := hideFile(oldPath.String())
-		if err != nil {
+		if err := hideFile(oldPath.String()); err != nil {
 			slog.Warn("Could not hide old app", "error", err)
 		}
 	}
@@ -162,4 +163,13 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 	slog.Info("Updated completed", "path", currentPath)
 
 	return currentPath.String(), nil
+}
+
+// isExecutable checks if a file is executable.
+func isExecutable(info fs.FileInfo) bool {
+	if runtime.GOOS == "windows" {
+		return filepath.Ext(info.Name()) == ".exe"
+	} else {
+		return info.Mode()&0111 != 0
+	}
 }

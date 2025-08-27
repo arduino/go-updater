@@ -1,8 +1,8 @@
 package updater
 
 import (
+	"archive/zip"
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -94,32 +94,42 @@ func CreateRelease(t *testing.T, version releaser.Version, content []byte) *rele
 
 	tmpDir := t.TempDir()
 
-	binName := "new-bin"
+	inputDir := filepath.Join(tmpDir, "input")
+	require.NoError(t, os.Mkdir(inputDir, 0700))
+
+	binName := "new-bin-"
 	if runtime.GOOS == "windows" {
-		binName += ".exe"
+		binName += version.String() + ".exe"
+		binPath := filepath.Join(inputDir, binName)
+		require.NoError(t, os.WriteFile(binPath, content, 0600))
+	} else {
+		zipName := binName + version.String() + ".zip"
+		zipFilePath := filepath.Join(inputDir, zipName)
+		zipFile, err := os.Create(zipFilePath)
+		require.NoError(t, err)
+		zipW := zip.NewWriter(zipFile)
+		header := &zip.FileHeader{
+			Name:   binName,
+			Method: zip.Deflate,
+		}
+		header.SetMode(0700)
+		// Create the file in the ZIP archive
+		binF, err := zipW.CreateHeader(header)
+		require.NoError(t, err)
+		_, err = binF.Write(content)
+		require.NoError(t, err)
+		require.NoError(t, zipW.Close())
+		require.NoError(t, zipFile.Close())
+		binName = zipName
 	}
 
-	inputDir := filepath.Join(tmpDir, "input")
-
-	require.NoError(t, os.Mkdir(inputDir, 0700))
-	fileA := filepath.Join(inputDir, binName)
-	require.NoError(t, os.WriteFile(fileA, content, 0600))
-
+	binPath := filepath.Join(inputDir, binName)
 	outputDir := filepath.Join(tmpDir, "output")
 
-	_, err := releaser.CreateRelease(inputDir, releaser.NewPlatform(runtime.GOOS, runtime.GOARCH), version, outputDir)
+	_, err := releaser.CreateRelease(binPath, releaser.NewPlatform(runtime.GOOS, runtime.GOARCH), version, outputDir)
 	require.NoError(t, err)
 
-	// check zip file exists and json manifest is created
-	zipPath := filepath.Join(outputDir, version.String(), runtime.GOOS+"-"+runtime.GOARCH+".zip")
-	_, err = os.Stat(zipPath)
-	require.NoError(t, err, "zip file does not exist")
-
-	require.NoError(t, err)
 	jsonPath := filepath.Join(outputDir, runtime.GOOS+"-"+runtime.GOARCH+".json")
-	_, err = os.Stat(jsonPath)
-	require.NoError(t, err, "manifest JSON file does not exist")
-
 	rawManifest, err := os.ReadFile(jsonPath)
 	require.NoError(t, err)
 	manifestResp := &http.Response{
@@ -127,11 +137,13 @@ func CreateRelease(t *testing.T, version releaser.Version, content []byte) *rele
 		Body:       io.NopCloser(bytes.NewReader(rawManifest)),
 	}
 
-	zipBytes, err := os.ReadFile(zipPath)
+	outBinPath := filepath.Join(outputDir, binName)
+	outBinBytes, err := os.ReadFile(outBinPath)
 	require.NoError(t, err)
-	zipResp := &http.Response{
+	// require.Equal(t, content, outBinBytes)
+	outBinResp := &http.Response{
 		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(bytes.NewReader(zipBytes)),
+		Body:       io.NopCloser(bytes.NewReader(outBinBytes)),
 	}
 
 	client := &releaser.Client{
@@ -141,8 +153,8 @@ func CreateRelease(t *testing.T, version releaser.Version, content []byte) *rele
 			if req.URL.Path == "/testcmd/"+runtime.GOOS+"-"+runtime.GOARCH+".json" && req.Method == http.MethodGet {
 				return manifestResp, nil
 			}
-			if req.URL.Path == fmt.Sprintf("/testcmd/%s/%s-%s.zip", version, runtime.GOOS, runtime.GOARCH) && req.Method == http.MethodGet {
-				return zipResp, nil
+			if req.URL.Path == "/testcmd/"+binName && req.Method == http.MethodGet {
+				return outBinResp, nil
 			}
 			panic("unreachable request")
 		}},

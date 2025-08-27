@@ -88,22 +88,38 @@ func (c *Client) GetLatestVersion(plat Platform) (Manifest, error) {
 	return res, nil
 }
 
-// FetchZip fetches the zip for the given version and platform.
-func (c *Client) FetchZip(version Version, plat Platform) (io.ReadCloser, error) {
-	zipURL := c.BaseURL.JoinPath(c.CmdName, version.String(), plat.String()+".zip").String()
-	req, err := http.NewRequest("GET", zipURL, nil)
+// FetchRelease fetches the release file for the given version and platform.
+func (c *Client) FetchRelease(m Manifest) (FileReader, error) {
+	relURL := c.BaseURL.JoinPath(c.CmdName, m.Name).String()
+	req, err := http.NewRequest("GET", relURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return FileReader{}, fmt.Errorf("failed to create request: %w", err)
 	}
 	c.addHeaders(req)
 	// #nosec G107 -- zipURL is constructed from trusted config and parameters
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to GET zip: %w", err)
+		return FileReader{}, fmt.Errorf("failed to GET release file: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return nil, fmt.Errorf("bad http status from %s: %v", zipURL, resp.Status)
+		return FileReader{}, fmt.Errorf("bad http status from %s: %v", relURL, resp.Status)
 	}
-	return resp.Body, nil
+	return FileReader{
+		reader:   resp.Body,
+		FileName: m.Name,
+	}, nil
+}
+
+type FileReader struct {
+	reader   io.ReadCloser
+	FileName string
+}
+
+func (f FileReader) Read(p []byte) (n int, err error) {
+	return f.reader.Read(p)
+}
+
+func (f FileReader) Close() error {
+	return f.reader.Close()
 }

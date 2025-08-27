@@ -11,7 +11,6 @@ import (
 )
 
 func TestCheckForUpdates(t *testing.T) {
-
 	t.Run("No Update", func(t *testing.T) {
 		tmpExec := CreateTmpExecutable(t, "no-update-is-needed", []byte{})
 		defer tmpExec.cleanup()
@@ -49,5 +48,4 @@ func TestCheckForUpdates(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "failed to restart application"), "Expected error about failed restart, got: %v", err)
 	})
-
 }
