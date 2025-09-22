@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !windows
 
 package updater
 
@@ -167,9 +167,5 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 
 // isExecutable checks if a file is executable.
 func isExecutable(info fs.FileInfo) bool {
-	if runtime.GOOS == "windows" {
-		return filepath.Ext(info.Name()) == ".exe"
-	} else {
-		return info.Mode()&0111 != 0
-	}
+	return info.Mode()&0111 != 0
 }

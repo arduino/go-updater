@@ -2,6 +2,7 @@ package updater
 
 import (
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -40,6 +41,9 @@ func TestCheckForUpdates(t *testing.T) {
 	})
 
 	t.Run("update ok but restart failed", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("cannot test it on windows because it opens installer executable")
+		}
 		tmp := CreateTmpExecutable(t, "a-bad-exec-format", []byte{0xDE, 0xAD, 0xBE, 0xEF})
 		defer tmp.cleanup()
 		client := CreateRelease(t, "2.0.0", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
