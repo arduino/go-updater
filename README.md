@@ -51,7 +51,10 @@ func main() {
     currentVersion := releaser.Version("1.0.0")
     
     // Create HTTP client for your update server
-    client := releaser.NewClient("https://releases.example.com/", "path/to/manifest")
+    // The base URL should point to the parent directory containing platform-specific folders
+    // The client will automatically discover the correct manifest.json based on the current platform
+    // e.g., running on Linux will look for: https://releases.example.com/path/to/release/linux-amd64.json
+    client := releaser.NewClient("https://releases.example.com/", "path/to/release/")
     
     // Check for updates
     fmt.Println("Checking for updates...")
@@ -66,8 +69,8 @@ func main() {
     err := updater.CheckForUpdates(
         executablePath,                    // Path to current executable
         currentVersion,                    // Current version
-        client,                           // HTTP client
-        confirmUpdate,                   // Auto-confirm updates
+        client,                            // HTTP client
+        confirmUpdate,                    // Auto-confirm updates
     )
     
     if err != nil {
@@ -108,20 +111,21 @@ go run github.com/arduino/go-updater/cmd/releaser \\
 
 ### 3. Server Setup
 
-Set up an HTTP server to serve your releases. The updater expects this structure:
+Set up an HTTP server to serve your releases. The updater expects this structure where each platform has its own subdirectory:
 
 ```
-https://releases.example.com/
-├── linux-amd64/
-│   ├── myapp-linux-amd64
-|   ├──linux-amd64.json
-├── windows-amd64/
-│   ├── myapp-windows-amd64.exe
-│   ├── windows-amd64.json
-└── darwin-amd64/
-    ├── myapp-darwin-amd64
-    ├── darwin-amd64.json
+https://releases.example.com/          <- Base URL used in NewClient()
+├── /path/to/release/                    
+   ├── myapp-linux-amd64             <- Actual executable/archive
+   ├── myapp-windows-amd64.exe
+   ├── myapp-darwin-amd64
+   |
+   └── darwin-amd64.json
+   └── linux-amd64.json              <- Platform manifest (auto-discovered)
+   └── windows-amd64.json
 ```
+
+**Platform Discovery**: When the updater runs, it automatically detects the current platform (e.g., `linux-amd64`) and constructs the correct URL path to fetch the appropriate manifest and executable.
 
 Example `linux-amd64.json`:
 
