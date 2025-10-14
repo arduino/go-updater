@@ -105,20 +105,17 @@ Set up an HTTP server to serve your releases. The updater expects this structure
 ```
 https://releases.example.com/
 ├── linux-amd64/
-│   ├── 1.2.0/
-│   │   └── myapp-linux-amd64
+│   ├── myapp-linux-amd64
 |   ├──linux-amd64.json
 ├── windows-amd64/
-│   ├── 1.2.0/
-│   │   └── myapp-windows-amd64.exe
+│   ├── myapp-windows-amd64.exe
 │   ├── windows-amd64.json
 └── darwin-amd64/
-    ├── 1.2.0/
-    └── myapp-darwin-amd64
+    ├── myapp-darwin-amd64
     ├── darwin-amd64.json
 ```
 
-Example `manifest.json`:
+Example `linux-amd64.json`:
 
 ```json
 {
@@ -133,7 +130,6 @@ Example `manifest.json`:
 - **HTTPS Only**: Always use HTTPS for your release server
 - **Checksum Verification**: All downloads are automatically verified using SHA256
 - **Path Validation**: Archive extraction includes path traversal protection
-- **Atomic Updates**: Updates are applied atomically to prevent corruption
 
 ## License
 
