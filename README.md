@@ -111,14 +111,14 @@ go run github.com/arduino/go-updater/cmd/releaser \\
 
 ### 3. Server Setup
 
-Set up an HTTP server to serve your releases. The updater expects this structure where each platform has its own subdirectory:
+Set up an HTTP server to serve your releases. The updater expects this structure where each platform has its own json file:
 
 ```
 https://releases.example.com/          <- Base URL used in NewClient()
 ├── /path/to/release/                    
-   ├── myapp-linux-amd64             <- Actual executable/archive
-   ├── myapp-windows-amd64.exe
-   ├── myapp-darwin-amd64
+   ├── myapp-linux-amd64-1.2.0.tar.gz             <- Actual executable/archive
+   ├── myapp-windows-amd64-1.2.0-installer.exe
+   ├── myapp-darwin-amd64.zip
    |
    └── darwin-amd64.json
    └── linux-amd64.json              <- Platform manifest (auto-discovered)
@@ -131,7 +131,7 @@ Example `linux-amd64.json`:
 
 ```json
 {
-    "name": "myapp-linux-amd64",
+    "name": "myapp-linux-amd64-1.2.0.tar.gz",
     "version": "1.2.0",
     "sha256": "abc123def456..."
 }
