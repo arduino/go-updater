@@ -10,9 +10,17 @@ A cross-platform auto-updater library for Go applications that enables seamless 
 - 🚀 **Automatic Updates**: Check for and apply updates automatically
 - 🔒 **Secure Verification**: SHA256 checksum validation for all downloads  
 - 🌍 **Cross-Platform**: Support for Windows, macOS, and Linux
-- 📦 **Archive Support**: Extract updates from ZIP, TAR, and other formats
+- 📦 **Archive Support**: Platform-specific archive extraction (see supported formats below)
 - 🔄 **Automatic Restart**: Seamlessly restart applications after updates
 - 🎯 **Platform Detection**: Automatic OS and architecture detection
+
+## Supported Archive Formats
+
+Archive support varies by platform:
+
+- **Linux**: `.zip`, `.gz`, `.tgz` (tar.gz)
+- **macOS**: `.zip` 
+- **Windows**: Windows installers created with NSIS
 
 ## Installation
 
