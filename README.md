@@ -149,14 +149,6 @@ This software is released under the GNU General Public License version 3. See [L
 
 For commercial licensing options, please contact license@arduino.cc.
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)  
-5. Open a Pull Request
-
 ---
 
 Made with ❤️ by [Arduino](https://www.arduino.cc/)
