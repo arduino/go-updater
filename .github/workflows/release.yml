@@ -1,0 +1,57 @@
+name: Release releaser
+
+on:
+  push:
+    tags:
+      - "*" # Trigger on all tags
+
+env:
+  GO_VERSION: "1.25.1"
+  PROJECT_NAME: "releaser"
+  GITHUB_TOKEN: ${{ secrets.ARDUINOBOT_TOKEN }}
+  GITHUB_USERNAME: ArduinoBot
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Extract version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF##*/}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "RELEASE_NAME=${{ env.PROJECT_NAME }}-${VERSION}-linux-amd64" >> $GITHUB_ENV
+        env:
+          GITHUB_REF: ${{ github.ref }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build Binary
+        env:
+          GOARCH: ${{ matrix.arch }}
+          GOOS: ${{ matrix.os }}
+        run: |
+          mkdir -p build/
+          go build -v -ldflags "-X 'main.version=${{ env.VERSION }}'" \
+            -o ./build/ \
+            ./cmd/${{ env.PROJECT_NAME }}
+
+      - name: Prepare Build Artifacts
+        run: |
+          tar -czf ./build/${{ env.RELEASE_NAME }}.tar.gz -C ./build ${{ env.PROJECT_NAME }}
+
+      - name: Upload artifacts index
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: true
+          artifacts: build/${{ env.RELEASE_NAME }}.tar.gz
