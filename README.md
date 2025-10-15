@@ -1,6 +1,6 @@
 # go-updater
 
-A cross-platform auto-updater library for Go applications.
+A cross-platform updater library for Go applications.
 On Linux and macOS, it replaces the executable (or .app for macOS) and launches the new version, while on Windows, it runs the installer with the required privileges.
 
 ## Installation
