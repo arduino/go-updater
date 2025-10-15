@@ -86,3 +86,15 @@ allowed:
   - liliq-r-1.1
   - liliq-rplus-1.1
 
+reviewed:
+  go:
+    - github.com/juju/errors@v0.0.0-20181118221551-089d3ea4e4d5
+    - github.com/klauspost/compress@v1.15.13
+    - github.com/klauspost/compress/fse@v1.15.13
+    - github.com/klauspost/compress/huff0@v1.15.13
+    - github.com/klauspost/compress/internal/snapref@v1.15.13
+    - github.com/klauspost/compress/zstd@v1.15.13
+    - github.com/ulikunitz/xz@v0.5.12
+    - github.com/ulikunitz/xz/internal/hash@v0.5.12
+    - github.com/ulikunitz/xz/internal/xlog@v0.5.12
+    - github.com/ulikunitz/xz/lzma@v0.5.12
