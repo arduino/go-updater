@@ -1,14 +1,12 @@
 sources:
-  go: {}
+  go: true
 
-cache_path: licenses
+cache_path: .licenses
 
 apps:
-  - name: go-updater
-    source_path: .
-    cache_path: .licenses
-    include_sources:
-      - go
+  - source_path: ./cmd/releaser/
+  - source_path: ./releaser/
+  - source_path: ./updater/
 
 # Source: https://github.com/arduino/tooling-project-assets/blob/main/workflow-templates/assets/check-dependencies/GPL-3.0/.licensed.yml
 allowed:
@@ -87,3 +85,4 @@ allowed:
   - eupl-1.2
   - liliq-r-1.1
   - liliq-rplus-1.1
+
