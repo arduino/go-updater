@@ -1,29 +1,7 @@
 # go-updater
 
 A cross-platform auto-updater library for Go applications.
-
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-
-## Features
-
-- **Cross-Platform Compatibility**: Supports Windows, macOS, and Linux operating systems
-- **Checksum Verification**: Validates downloads using SHA256 checksum verification
-- **Archive Extraction**: Handles platform-specific archive formats automatically (see the `Archive support` section)
-- **Application Restart**: Restarts applications after applying updates (see the `Application Restart Methods` section)
-- **Platform Detection**: Automatically detects the current operating system and architecture
-
-*Archive support* is tailored to each platform:
-- **Linux**: ZIP archives, Gzip compressed files, and TAR.GZ archives
-- **macOS**: ZIP archives only
-- **Windows**: NSIS installers (see [NSIS documentation](https://nsis.sourceforge.io/Download))
-
-*Application Restart Methods*: The package uses platform-specific methods to restart applications after updates:
-
-- **Linux**: Uses standard `os/exec` to start the new executable as a separate process
-- **macOS**: 
-  - For `.app` bundles: Uses Cocoa's `NSWorkspace.openApplicationAtURL` API for proper macOS app launching
-  - For regular executables: Falls back to standard `os/exec` process execution
-- **Windows**: Uses elevated execution through Windows RunAs API to handle installer packages with appropriate permissions
+On Linux and macOS, it replaces the executable (or .app for macOS) and launches the new version, while on Windows, it runs the installer with the required privileges.
 
 ## Installation
 

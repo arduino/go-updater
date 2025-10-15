@@ -45,7 +45,7 @@ func CheckForUpdates(targetPath string, current releaser.Version, client *releas
 	if err := execApp(restartPath); err != nil {
 		return fmt.Errorf("update applied, but failed to restart application: %w", err)
 	}
-	// TODO: allow to define custom "exit" code to be used in the wail app runtime.quit()
+	// TODO: allow to define custom "exit" function
 	os.Exit(0)
 	return nil
 }
