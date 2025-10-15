@@ -33,9 +33,11 @@ go get github.com/arduino/go-updater
 
 ## Quick Start
 
-### Basic Example
+### 1. Basic Example
 
-Here's a simple example of how to integrate auto-updates into your Go application:
+Here's a simple example of how to integrate auto-updates into your Go application.
+
+Add a `version` variable in the main package. Note that this variable will be overwritten during the build process through ldflags flag.
 
 ```go
 package main
@@ -49,16 +51,17 @@ import (
     "github.com/arduino/go-updater/releaser"
 )
 
+var version = "0.0.0" 
+
 func main() {
     // Your current application version
-    currentVersion := releaser.Version("1.0.0")
+    currentVersion := releaser.Version(version)
     
     // Create HTTP client for your update server
     // The base URL should point to the parent directory containing platform-specific folders
     // The client will automatically discover the correct manifest.json based on the current platform
     // e.g., running on Linux will look for: https://releases.example.com/path/to/release/linux-amd64.json
     client := releaser.NewClient("https://releases.example.com/", "path/to/release/")
-    
     
     fmt.Println("Checking for updates...")
     executablePath, err := os.Executable()
@@ -68,14 +71,12 @@ func main() {
     confirmUpdate := func(current, target releaser.Version) bool {
        return true 
     }
-    // Check for updates
     err := updater.CheckForUpdates(
         executablePath,                    // Path to current executable
         currentVersion,                    // Current version
         client,                            // HTTP releaser client
         confirmUpdate,                     // Auto-confirm updates
     )
-    
     if err != nil {
         panic(err)
     }
@@ -89,25 +90,8 @@ func main() {
 }
 ```
 
-## Creating Releases
 
-Use the included releaser tool to create releases for your application:
-
-### 1. Build Your Application
-
-Create your Go application and include a version variable in the main package. Note that this variable will be overwritten during the build process through linker flags.
-
-```go 
-package main
-
-import "fmt"
-
-var version = "0.0.0" 
-
-func main() {
-	fmt.Println("My app with version", version)
-}
-```
+### 2. Build Your Application
 
 Build your application with a specific version by following these requirements:
 - Use the LDFLAGS `-X` flag to set the version at build time
@@ -116,7 +100,7 @@ Build your application with a specific version by following these requirements:
 GOOS=linux GOARCH=amd64 go build -o myapp-linux-amd64-1.0.0  -ldflags="-X 'main.version=1.0.0'" ./cmd/myapp
 ```
 
-### 2. Create Release Manifest
+### 3. Create Release Manifest
 
 ```bash
 go run github.com/arduino/go-updater/cmd/releaser ./myapp-linux-amd64-1.0.0  1.0.0  -platform linux-amd64   -o ./releases/
@@ -134,7 +118,7 @@ where:
  - `version` is the version of the release
  - `sha256` is the sha256 of the executable/archive
 
-### 3. Server Setup
+### 4. Server Setup
 
 Set up an HTTP server to serve your releases. The updater expects this structure where each platform has its own json file:
 
@@ -149,8 +133,6 @@ https://releases.example.com/                    <- Base URL used in NewClient()
    └── linux-amd64.json                          <- Platform manifest 
    └── windows-amd64.json
 ```
-
-**Platform Discovery**: The updater automatically detects the current platform (such as `linux-amd64`) and constructs the appropriate URL path to fetch the corresponding platform manifest file (for example, `linux-amd64.json`).
 
 ## License
 
