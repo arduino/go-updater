@@ -1,26 +1,29 @@
 # go-updater
 
-A cross-platform auto-updater library for Go applications that enables seamless automatic updates with secure verification and restart capabilities.
+A cross-platform auto-updater library for Go applications.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/arduino/go-updater.svg)](https://pkg.go.dev/github.com/arduino/go-updater)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## Features
 
-- 🚀 **Automatic Updates**: Check for and apply updates automatically
-- 🔒 **Secure Verification**: SHA256 checksum validation for all downloads  
-- 🌍 **Cross-Platform**: Support for Windows, macOS, and Linux
-- 📦 **Archive Support**: Platform-specific archive extraction (see supported formats below)
-- 🔄 **Automatic Restart**: Seamlessly restart applications after updates
-- 🎯 **Platform Detection**: Automatic OS and architecture detection
+- **Cross-Platform Compatibility**: Supports Windows, macOS, and Linux operating systems
+- **Checksum Verification**: Validates downloads using SHA256 checksum verification
+- **Archive Extraction**: Handles platform-specific archive formats automatically (see the `Archive support` section)
+- **Application Restart**: Restarts applications after applying updates (see the `Application Restart Methods` section)
+- **Platform Detection**: Automatically detects the current operating system and architecture
 
-## Supported Archive Formats
+*Archive support* is tailored to each platform:
+- **Linux**: ZIP archives, Gzip compressed files, and TAR.GZ archives
+- **macOS**: ZIP archives only
+- **Windows**: NSIS installers (see [NSIS documentation](https://nsis.sourceforge.io/Download))
 
-Archive support varies by platform:
+*Application Restart Methods*: The package uses platform-specific methods to restart applications after updates:
 
-- **Linux**: `.zip`, `.gz`, `.tgz` (tar.gz)
-- **macOS**: `.zip` 
-- **Windows**: Windows installers created with NSIS
+- **Linux**: Uses standard `os/exec` to start the new executable as a separate process
+- **macOS**: 
+  - For `.app` bundles: Uses Cocoa's `NSWorkspace.openApplicationAtURL` API for proper macOS app launching
+  - For regular executables: Falls back to standard `os/exec` process execution
+- **Windows**: Uses elevated execution through Windows RunAs API to handle installer packages with appropriate permissions
 
 ## Installation
 
@@ -56,34 +59,33 @@ func main() {
     // e.g., running on Linux will look for: https://releases.example.com/path/to/release/linux-amd64.json
     client := releaser.NewClient("https://releases.example.com/", "path/to/release/")
     
-    // Check for updates
+    
     fmt.Println("Checking for updates...")
     executablePath, err := os.Executable()
 	if err != nil {
 		panic("could not get executable path")
 	}
-
     confirmUpdate := func(current, target releaser.Version) bool {
        return true 
     }
+    // Check for updates
     err := updater.CheckForUpdates(
         executablePath,                    // Path to current executable
         currentVersion,                    // Current version
-        client,                            // HTTP client
-        confirmUpdate,                    // Auto-confirm updates
+        client,                            // HTTP releaser client
+        confirmUpdate,                     // Auto-confirm updates
     )
     
     if err != nil {
-        log.Printf("Update check failed: %v", err)
-        // Continue with normal application startup
+        panic(err)
     }
 
     // Note: If an update was found and applied, the application will be restarted
     // with the new version and the code below will never be executed.
     // Your application logic should be placed here only for cases where:
-    // - No update was available
-    // - Update check failed
-    // - User declined the update
+    // - No update was available (err == nil)
+    // - Update check failed (e.g., error fetching the release)
+    // - User declined the update (err == nil)
 }
 ```
 
@@ -93,59 +95,66 @@ Use the included releaser tool to create releases for your application:
 
 ### 1. Build Your Application
 
+Create your Go application and include a version variable in the main package. Note that this variable will be overwritten during the build process through linker flags.
+
+```go 
+package main
+
+import "fmt"
+
+var version = "0.0.0" 
+
+func main() {
+	fmt.Println("My app with version", version)
+}
+```
+
+Build your application with a specific version by following these requirements:
+- Use the LDFLAGS `-X` flag to set the version at build time
+- Include the version in the output filename (this is mandatory for the releaser tool to function correctly)
 ```bash
-# Build for multiple platforms
-GOOS=linux GOARCH=amd64 go build -o myapp-linux-amd64 ./cmd/myapp
+GOOS=linux GOARCH=amd64 go build -o myapp-linux-amd64-1.0.0  -ldflags="-X 'main.version=1.0.0'" ./cmd/myapp
 ```
 
 ### 2. Create Release Manifest
 
 ```bash
-# Create releases
-go run github.com/arduino/go-updater/cmd/releaser \\
-    -input ./myapp-linux-amd64 \\
-    -version 1.2.0 \\
-    -platform linux-amd64 \\
-    -output ./releases/
+go run github.com/arduino/go-updater/cmd/releaser ./myapp-linux-amd64-1.0.0  1.0.0  -platform linux-amd64   -o ./releases/
+
+Release created successfully!
+{
+  "name": "myapp-linux-amd64-1.0.0",
+  "version": "1.0.0",
+  "sha256": "6238F9cnMS8ete3kfDnD9Yk7iDFMWLBX31HXHmii734="
+}
 ```
+
+where:
+ - `name` is the name of the executable/archive
+ - `version` is the version of the release
+ - `sha256` is the sha256 of the executable/archive
 
 ### 3. Server Setup
 
 Set up an HTTP server to serve your releases. The updater expects this structure where each platform has its own json file:
 
 ```
-https://releases.example.com/          <- Base URL used in NewClient()
+https://releases.example.com/                    <- Base URL used in NewClient()
 ├── /path/to/release/                    
-   ├── myapp-linux-amd64-1.2.0.tar.gz             <- Actual executable/archive
-   ├── myapp-windows-amd64-1.2.0-installer.exe
-   ├── myapp-darwin-amd64.zip
+   ├── myapp-linux-amd64-1.0.0.tar.gz            <- Actual executable/archive
+   ├── myapp-windows-1.0.0-installer.exe
+   ├── myapp-darwin-1.0.0.zip
    |
    └── darwin-amd64.json
-   └── linux-amd64.json              <- Platform manifest (auto-discovered)
+   └── linux-amd64.json                          <- Platform manifest 
    └── windows-amd64.json
 ```
 
-**Platform Discovery**: When the updater runs, it automatically detects the current platform (e.g., `linux-amd64`) and constructs the correct URL path to fetch the appropriate manifest and executable.
-
-Example `linux-amd64.json`:
-
-```json
-{
-    "name": "myapp-linux-amd64-1.2.0.tar.gz",
-    "version": "1.2.0",
-    "sha256": "abc123def456..."
-}
-```
-
-## Security Considerations
-
-- **HTTPS Only**: Always use HTTPS for your release server
-- **Checksum Verification**: All downloads are automatically verified using SHA256
-- **Path Validation**: Archive extraction includes path traversal protection
+**Platform Discovery**: The updater automatically detects the current platform (such as `linux-amd64`) and constructs the appropriate URL path to fetch the corresponding platform manifest file (for example, `linux-amd64.json`).
 
 ## License
 
-This software is released under the GNU General Public License version 3. See [LICENSE](LICENSE) for details.
+This software is released under the GNU General Public License version 3. See the [LICENSE](LICENSE) file for complete details.
 
 For commercial licensing options, please contact license@arduino.cc.
 
