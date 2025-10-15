@@ -1,8 +1,5 @@
 {
-  "json": {},
   "markdown": {},
-  "toml": {},
-  "dockerfile": {},
   "yaml": {},
   "excludes": [
     ".licenses/**",
