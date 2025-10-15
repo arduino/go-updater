@@ -94,6 +94,7 @@ reviewed:
     - github.com/klauspost/compress/huff0@v1.15.13
     - github.com/klauspost/compress/internal/snapref@v1.15.13
     - github.com/klauspost/compress/zstd@v1.15.13
+    - github.com/klauspost/compress/internal/cpuinfo@v1.15.13
     - github.com/ulikunitz/xz@v0.5.12
     - github.com/ulikunitz/xz/internal/hash@v0.5.12
     - github.com/ulikunitz/xz/internal/xlog@v0.5.12
