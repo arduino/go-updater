@@ -68,12 +68,13 @@ func main() {
 }
 ```
 
-
 ### 2. Build Your Application
 
 Build your application with a specific version by following these requirements:
+
 - Use the LDFLAGS `-X` flag to set the version at build time
 - Include the version in the output filename (this is mandatory for the releaser tool to function correctly)
+
 ```bash
 GOOS=linux GOARCH=amd64 go build -o myapp-linux-amd64-1.0.0  -ldflags="-X 'main.version=1.0.0'" ./cmd/myapp
 ```
@@ -92,9 +93,10 @@ Release created successfully!
 ```
 
 where:
- - `name` is the name of the executable/archive
- - `version` is the version of the release
- - `sha256` is the sha256 of the executable/archive
+
+- `name` is the name of the executable/archive
+- `version` is the version of the release
+- `sha256` is the sha256 of the executable/archive
 
 ### 4. Server Setup
 
