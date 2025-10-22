@@ -139,7 +139,11 @@ func apply(targetPath string, current releaser.Version, client *releaser.Client,
 
 	// Remove old app
 	slog.Info("Removing old app", "to", oldAppPath)
-	_ = oldAppPath.RemoveAll()
+	err = oldAppPath.RemoveAll()
+	// TODO: added only to debug why it is not able to remove the old app, remove later
+	if err != nil {
+		return "", fmt.Errorf("could not remove old app: %w", err)
+	}
 
 	slog.Info("Returning updated app", "path", currentAppPath)
 
