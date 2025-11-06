@@ -1,10 +1,10 @@
 module github.com/arduino/go-updater
 
-go 1.25.1
+go 1.25
 
 require (
 	github.com/arduino/go-paths-helper v1.14.0
-	github.com/arduino/go-windows-runas v1.0.1
+	github.com/arduino/go-windows-runas v1.0.2
 	github.com/codeclysm/extract/v4 v4.0.0
 	github.com/stretchr/testify v1.11.1
 )
