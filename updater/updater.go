@@ -45,6 +45,7 @@ func CheckForUpdates(targetPath string, current releaser.Version, client *releas
 	if err := execApp(restartPath); err != nil {
 		return fmt.Errorf("update applied, but failed to restart application: %w", err)
 	}
+	fmt.Println("EXITING no error ")
 	// TODO: allow to define custom "exit"
 	os.Exit(0)
 	return nil
