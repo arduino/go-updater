@@ -19,8 +19,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/arduino/go-paths-helper v1.14.0 h1:b4C8KJa7CNz2XnzTWg97M3LAmzWSWrj+m/o5/skzv3Y=
 github.com/arduino/go-paths-helper v1.14.0/go.mod h1:dDodKn2ZX4iwuoBMapdDO+5d0oDLBeM4BS0xS4i40Ak=
-github.com/arduino/go-windows-runas v1.0.2 h1:V3DgEoYVB/YVV1Gt3cwyPUni+ECMRmW2cfvDnuXjGfo=
-github.com/arduino/go-windows-runas v1.0.2/go.mod h1:TROWwczwunKIVqvGVBXPDD7P1YLzNQyuKbt2IQNQU58=
+github.com/arduino/go-windows-runas v1.0.3-0.20251215135657-89d451066b12 h1:Qu63G1YOfoPPxPTb3S8YxNkuZxMWnSLFD3XtgWdi81U=
+github.com/arduino/go-windows-runas v1.0.3-0.20251215135657-89d451066b12/go.mod h1:TROWwczwunKIVqvGVBXPDD7P1YLzNQyuKbt2IQNQU58=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/chainguard-dev/git-urls v1.0.2 h1:pSpT7ifrpc5X55n4aTTm7FFUE+ZQHKiqpiwNkJrVcKQ=

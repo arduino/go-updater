@@ -24,7 +24,7 @@ import (
 )
 
 func execApp(path string) error {
-	exitCode, err := runas.RunElevated(path, "", []string{}, false)
+	exitCode, err := runas.RunElevated(path, "", []string{}, false, false)
 	if err != nil {
 		return fmt.Errorf("could not run installer: %w", err)
 	}
