@@ -24,6 +24,7 @@ import (
 
 // UpgradeConfirmCB is a function that is called when an update is ready to be applied.
 type UpgradeConfirmCB func(current, target releaser.Version) bool
+type CleanupCB func() error
 
 var DefaultUpgradeConfirmCb = func(current, target releaser.Version) bool { return true }
 
@@ -32,7 +33,7 @@ var DefaultUpgradeConfirmCb = func(current, target releaser.Version) bool { retu
 // If an update is applied, it will restart the application with the new version.
 // If no update is available, it will return nil.
 // If an error occurs during the update process, it will return the error.
-func CheckForUpdates(targetPath string, current releaser.Version, client *releaser.Client, upgradeCb UpgradeConfirmCB) error {
+func CheckForUpdates(targetPath string, current releaser.Version, client *releaser.Client, upgradeCb UpgradeConfirmCB, cleanup CleanupCB) error {
 	restartPath, err := apply(targetPath, current, client, upgradeCb)
 	if err != nil {
 		return err
@@ -45,7 +46,12 @@ func CheckForUpdates(targetPath string, current releaser.Version, client *releas
 	if err := execApp(restartPath); err != nil {
 		return fmt.Errorf("update applied, but failed to restart application: %w", err)
 	}
-	// TODO: allow to define custom "exit"
+
+	if cleanup != nil {
+		if err := cleanup(); err != nil {
+			return fmt.Errorf("cleanup failed: %w", err)
+		}
+	}
 	os.Exit(0)
 	return nil
 }
