@@ -16,15 +16,17 @@
 package updater
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"syscall"
+	"time"
 
 	"github.com/arduino/go-updater/releaser"
 )
 
 // UpgradeConfirmCB is a function that is called when an update is ready to be applied.
 type UpgradeConfirmCB func(current, target releaser.Version) bool
-type CleanupCB func() error
 
 var DefaultUpgradeConfirmCb = func(current, target releaser.Version) bool { return true }
 
@@ -33,7 +35,7 @@ var DefaultUpgradeConfirmCb = func(current, target releaser.Version) bool { retu
 // If an update is applied, it will restart the application with the new version.
 // If no update is available, it will return nil.
 // If an error occurs during the update process, it will return the error.
-func CheckForUpdates(targetPath string, current releaser.Version, client *releaser.Client, upgradeCb UpgradeConfirmCB, cleanup CleanupCB) error {
+func CheckForUpdates(targetPath string, current releaser.Version, client *releaser.Client, upgradeCb UpgradeConfirmCB) error {
 	restartPath, err := apply(targetPath, current, client, upgradeCb)
 	if err != nil {
 		return err
@@ -47,11 +49,50 @@ func CheckForUpdates(targetPath string, current releaser.Version, client *releas
 		return fmt.Errorf("update applied, but failed to restart application: %w", err)
 	}
 
-	if cleanup != nil {
-		if err := cleanup(); err != nil {
-			return fmt.Errorf("cleanup failed: %w", err)
-		}
-	}
-	os.Exit(0)
 	return nil
+}
+
+// CheckAndWaitForOldApplication blocks until the process with oldPID exits.
+func CheckAndWaitForOldApplication(oldPID int) error {
+	if oldPID <= 0 {
+		return nil
+	}
+
+	for {
+		exists, err := processExists(oldPID)
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			return nil
+		}
+
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func processExists(pid int) (bool, error) {
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return false, nil
+	}
+
+	err = p.Signal(syscall.Signal(0))
+	if err == nil {
+		return true, nil
+	}
+
+	// If we get EPERM, the process exists but we lack permission
+	if errors.Is(err, syscall.EPERM) {
+		return true, nil
+	}
+
+	// ESRCH / ErrProcessDone → process is gone
+	if errors.Is(err, syscall.ESRCH) || errors.Is(err, os.ErrProcessDone) {
+		return false, nil
+	}
+
+	// Unknown error
+	return false, err
 }
