@@ -55,6 +55,11 @@ tasks:
     cmds:
       - ${PWD}/.bin/dprint check
 
+  license:check:
+    desc: Check license headers in Go files
+    cmds:
+      - addlicense -check $(find . -name "*.go" -type f -print0 | xargs -0)
+
   license:update:
     desc: Update license headers in Go files
     cmds:
