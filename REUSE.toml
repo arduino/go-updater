@@ -6,6 +6,7 @@ path = [
   ".editorconfig",
   ".golangci.yml",
   ".gitignore",
+  "updater/.gitignore",
   ".licensed.yml",
   "buf.gen.yaml",
   "buf.lock",
