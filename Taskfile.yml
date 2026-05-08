@@ -13,6 +13,7 @@ tasks:
       - install:linter
       - install:goimports
       - install:dprint
+      - install:reuse
 
   install:linter:
     cmds:
@@ -21,6 +22,10 @@ tasks:
   install:goimports:
     cmds:
       - go install golang.org/x/tools/cmd/goimports@{{ .GOIMPORTS_VERSION }}
+
+  install:reuse:
+    cmds:
+      - uv tool install reuse
 
   install:dprint:
     cmds:
@@ -55,15 +60,15 @@ tasks:
     cmds:
       - ${PWD}/.bin/dprint check
 
-  license:check:
-    desc: Check license headers in Go files
+  go:check-license-headers:
+    desc: verify presence of license headers and exit with non-zero code if missing
     cmds:
-      - addlicense -check $(find . -name "*.go" -type f -print0 | xargs -0)
+      - uvx reuse lint
 
-  license:update:
-    desc: Update license headers in Go files
+  go:update-license-headers:
+    desc: Update license headers in Go files with reuse template
     cmds:
-      - addlicense -c "(C) Arduino s.r.l. and/or its affiliated companies" -f ./license_header.tpl $(find . -name "*.go" -type f -print0 | xargs -0)
+      - uvx reuse annotate --template arduino-flasher-cli --exclude-year --copyright "Arduino s.r.l. and/or its affiliated companies"  --license GPL-3.0-or-later -r  $(find . -name "*.go" -o  -name "*.proto" -o  -name "*.sh" -type f -print0 | xargs -0)
 
   # Source: https://github.com/arduino/tooling-project-assets/blob/main/workflow-templates/assets/check-dependencies-task/Taskfile.yml
   general:cache-dep-licenses:
