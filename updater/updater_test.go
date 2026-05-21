@@ -108,7 +108,7 @@ func TestWaitForOldApplication(t *testing.T) {
 
 		// Kill and reap the child so the PID is freed and Signal(0) starts failing.
 		require.NoError(t, cmd.Process.Kill())
-		cmd.Wait()
+		require.Error(t, cmd.Wait()) // killed process exits with error; reap to free the PID
 
 		select {
 		case <-done:
@@ -124,7 +124,7 @@ func TestWaitForOldApplication(t *testing.T) {
 		}
 		cmd := exec.Command("sleep", "0")
 		require.NoError(t, cmd.Start())
-		cmd.Wait() // reap it so the PID is freed before we call WaitForOldApplication
+		require.NoError(t, cmd.Wait()) // reap it so the PID is freed before we call WaitForOldApplication
 		t.Setenv(oldPIDEnvVar, strconv.Itoa(cmd.Process.Pid))
 
 		done := make(chan struct{})

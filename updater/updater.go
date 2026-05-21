@@ -34,8 +34,7 @@ func CheckForUpdates(targetPath string, current releaser.Version, client *releas
 		return nil // No update available
 	}
 
-	// Pass our PID to the new process so it can wait for us to exit before
-	// acquiring exclusive resources (files, ports, etc.).
+	// Pass the current PID to the new process so it can wait for it to exit before launching the new version.
 	os.Setenv(oldPIDEnvVar, strconv.Itoa(os.Getpid()))
 	if err := execApp(restartPath); err != nil {
 		os.Unsetenv(oldPIDEnvVar)
@@ -43,6 +42,5 @@ func CheckForUpdates(targetPath string, current releaser.Version, client *releas
 	}
 	os.Unsetenv(oldPIDEnvVar)
 
-	// The new version is running. The caller must now exit the current process.
 	return nil
 }
