@@ -20,27 +20,27 @@ var DefaultUpgradeConfirmCb = func(current, target releaser.Version) bool { retu
 
 // CheckForUpdates checks for updates and applies it if available.
 // If the upgradeCb is not nil, it will prompt the user for confirmation before applying the update.
-// If an update is applied, it starts the new version and returns nil — the caller is responsible
-// for exiting the current process (e.g. os.Exit(0) or wails runtime.Quit()).
-// If no update is available, it will return nil.
-// If an error occurs during the update process, it will return the error.
-func CheckForUpdates(targetPath string, current releaser.Version, client *releaser.Client, upgradeCb UpgradeConfirmCB) error {
+// Returns (true, nil) if an update was applied and the new version is running — the caller must
+// then exit the current process (e.g. os.Exit(0) or wails runtime.Quit()).
+// Returns (false, nil) if no update is available.
+// Returns (false, err) if an error occurs during the update process.
+func CheckForUpdates(targetPath string, current releaser.Version, client *releaser.Client, upgradeCb UpgradeConfirmCB) (bool, error) {
 	restartPath, err := apply(targetPath, current, client, upgradeCb)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if restartPath == "" {
-		return nil // No update available
+		return false, nil // No update available
 	}
 
 	// Pass the current PID to the new process so it can wait for it to exit before launching the new version.
 	os.Setenv(oldPIDEnvVar, strconv.Itoa(os.Getpid()))
 	if err := execApp(restartPath); err != nil {
 		os.Unsetenv(oldPIDEnvVar)
-		return fmt.Errorf("update applied, but failed to restart application: %w", err)
+		return false, fmt.Errorf("update applied, but failed to restart application: %w", err)
 	}
 	os.Unsetenv(oldPIDEnvVar)
 
-	return nil
+	return true, nil
 }

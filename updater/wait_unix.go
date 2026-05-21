@@ -23,8 +23,6 @@ func waitForProcess(pid int) {
 		}
 		err = p.Signal(syscall.Signal(0))
 		if err == nil || errors.Is(err, syscall.EPERM) {
-			// nil  → process is alive
-			// EPERM → process is alive but owned by another user; still running
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}

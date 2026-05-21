@@ -26,8 +26,9 @@ func TestCheckForUpdates(t *testing.T) {
 		defer tmpExec.cleanup()
 		client := CreateRelease(t, "2.0.0", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
 
-		err := CheckForUpdates(tmpExec.targetPath, releaser.Version("2.0.0"), client, DefaultUpgradeConfirmCb)
+		updated, err := CheckForUpdates(tmpExec.targetPath, releaser.Version("2.0.0"), client, DefaultUpgradeConfirmCb)
 		require.NoError(t, err)
+		require.False(t, updated)
 	})
 
 	t.Run("status not found", func(t *testing.T) {
@@ -35,8 +36,9 @@ func TestCheckForUpdates(t *testing.T) {
 		defer tmp.cleanup()
 		notFound := CreateReleaseWithHTTPErrorResponse(t, http.StatusNotFound)
 
-		err := CheckForUpdates(tmp.targetPath, releaser.Version("1.0.0"), notFound, DefaultUpgradeConfirmCb)
+		updated, err := CheckForUpdates(tmp.targetPath, releaser.Version("1.0.0"), notFound, DefaultUpgradeConfirmCb)
 		require.Error(t, err)
+		require.False(t, updated)
 	})
 
 	t.Run("status not found", func(t *testing.T) {
@@ -45,8 +47,9 @@ func TestCheckForUpdates(t *testing.T) {
 
 		notFound := CreateReleaseWithHTTPErrorResponse(t, http.StatusNotFound)
 
-		err := CheckForUpdates(tmp.targetPath, releaser.Version("1.0.0"), notFound, DefaultUpgradeConfirmCb)
+		updated, err := CheckForUpdates(tmp.targetPath, releaser.Version("1.0.0"), notFound, DefaultUpgradeConfirmCb)
 		require.Error(t, err)
+		require.False(t, updated)
 	})
 
 	t.Run("update ok but restart failed", func(t *testing.T) {
@@ -57,8 +60,9 @@ func TestCheckForUpdates(t *testing.T) {
 		defer tmp.cleanup()
 		client := CreateRelease(t, "2.0.0", []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06})
 
-		err := CheckForUpdates(tmp.targetPath, releaser.Version("1.0.0"), client, DefaultUpgradeConfirmCb)
+		updated, err := CheckForUpdates(tmp.targetPath, releaser.Version("1.0.0"), client, DefaultUpgradeConfirmCb)
 		require.Error(t, err)
+		require.False(t, updated)
 		require.True(t, strings.Contains(err.Error(), "failed to restart application"), "Expected error about failed restart, got: %v", err)
 	})
 }
