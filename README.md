@@ -68,6 +68,14 @@ func main() {
 }
 ```
 
+### CLI Applications
+
+For a CLI binary, use `updater.UpdateCLI`. It replaces the executable in place on Linux, macOS and Windows, and does not restart it.
+
+```go
+updated, err := updater.UpdateCLI(executablePath, currentVersion, client, confirmUpdate)
+```
+
 ### 2. Build Your Application
 
 Build your application with a specific version by following these requirements:
